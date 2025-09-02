@@ -1,0 +1,49 @@
+﻿name: Release Tagged
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 1
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build Release
+        run: dotnet build --no-restore -c Release
+
+      - name: Publish for multiple runtimes
+        run: |
+          dotnet publish Lmss.Hosting.csproj -c Release -f net8.0 -o publish/net8.0
+
+      - name: Create release archives
+        run: |
+          cd publish
+          zip -r ../lmssharp.hosting-net8.0.zip net8.0/
+
+      - name: Create Release and Upload Assets
+        run: |
+          gh release create ${{ github.ref_name }} \
+            --title "${{ github.ref_name }}" \
+            --generate-notes \
+            lmssharp.hosting-*.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
